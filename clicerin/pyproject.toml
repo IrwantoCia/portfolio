@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "clicerin"
+version = "0.1.0"
+description = "CLI for your quality of life"
+authors = ["Irwanto Cia <irwantocia@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.scripts]
+clicerin = "clicerin.main:app"
+
+[tool.pyright]
+venvPath="/home/buggy/.cache/pypoetry/virtualenvs"
+venv="clicerin-wGt5JI6B-py3.12"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+typer = "^0.15.1"
+openai = "^1.57.1"
+numpy = "^2.2.0"
+pydub = "^0.25.1"
+pyaudio = "^0.2.14"
+soundfile = "^0.12.1"
+requests = "^2.32.3"
+textual = "^1.0.0"
+asyncio = "^3.4.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
