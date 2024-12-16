@@ -7,14 +7,13 @@ from textual.widgets import (
     Static,
     Markdown,
     TextArea,
-    Label,
 )
 from textual.containers import VerticalScroll, Container
 
 import asyncio
 
-from clicerin.helper import db
-from clicerin.openai import chat
+from ..helper import db, audio
+from ..ai import chat
 
 
 class ConsultApp(App):
@@ -27,11 +26,12 @@ class ConsultApp(App):
         self.stream_task = None
         self.db = db.DatabaseManager()
         self.chats = ""
+        self.audioRecorder = audio.AudioRecorder()
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header()
-        with Container(id="app-grid"):
+        with VerticalScroll(id="app-grid"):
             with Container(id="chat-pane"):
                 with VerticalScroll(id="markdown-content"):
                     pass
@@ -45,8 +45,10 @@ class ConsultApp(App):
                 with Container(classes="button-container"):
                     self.send_button = Button("Send", id="send-button")
                     self.stop_button = Button("Stop", id="stop-button")
+                    self.voice_button = Button("Voice", id="voice-button")
                     yield self.send_button
                     yield self.stop_button
+                    yield self.voice_button
 
         yield Footer()
 
@@ -57,6 +59,22 @@ class ConsultApp(App):
 
         elif event.button.id == "stop-button" and self.stream_task:
             self.on_stop_button()
+        elif event.button.id == "voice-button":
+            self.on_voice_button()
+
+    def on_voice_button(self):
+        self.audioRecorder.recording = not self.audioRecorder.recording
+        if self.audioRecorder.recording:
+            self.voice_button.label = "Recording..."
+            self.audioRecorder.record()
+        else:
+            self.voice_button.label = "Record"
+            self.audioRecorder.stop_recording()
+
+            base64 = audio.audio_to_base_64(
+                self.audioRecorder.audio_data, self.audioRecorder.sample_rate
+            )
+            chat.converse(base64)
 
     def on_send_button(self):
         self.char_index = 0
@@ -75,7 +93,7 @@ class ConsultApp(App):
 
         async def process_chunks():
             try:
-                for chunk in chat.test(q):
+                for chunk in chat.chat(q):
                     if chunk is not None:
                         self.current_chat += chunk
                         await md.update(self.current_chat)
@@ -85,17 +103,6 @@ class ConsultApp(App):
                 pass
 
         self.stream_task = asyncio.create_task(process_chunks())
-
-        # self.db.insert_chat(
-        #    db.Chat(
-        #        id=None,
-        #        model="gpt",
-        #        question=self.chat_input.text,
-        #        response=self.buffer,
-        #        token=0,
-        #        created_at=datetime.datetime.now(),
-        #    )
-        # )
 
         self.chat_input.clear()
         self.chat_input.focus()

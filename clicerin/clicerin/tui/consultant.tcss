@@ -79,3 +79,18 @@
 #stop-button:hover {
     border: tall $error;
 }
+
+#voice-button {
+    margin: 1 2;
+    width: 16;
+    height: 3;
+    content-align: center middle;
+    background: $accent;
+    color: $text;
+    transition: background 200ms;
+}
+
+#voice-button:hover {
+    border: tall $accent;
+}
+

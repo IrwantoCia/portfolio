@@ -1,10 +1,13 @@
 from typing import List, Dict, Any, Optional, Union
+
 from openai.types.chat import ChatCompletion, ChatCompletionMessage, ChatCompletionChunk
-from openai.types import CompletionUsage
+from openai.types import ChatModel, CompletionUsage
+
+from ..ai import constant
 
 
 class OpenAIRequestBuilder:
-    def __init__(self, model: str = "gpt-3.5-turbo") -> None:
+    def __init__(self, model: ChatModel = constant.GPTModel.GPT_4O_MINI) -> None:
         self.model = model
         self.messages: List[Dict[str, str]] = []
         self.temperature: float = 1.0

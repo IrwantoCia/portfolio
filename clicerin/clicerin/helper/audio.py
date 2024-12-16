@@ -1,5 +1,7 @@
+from ctypes import *
 import base64
 import io
+import threading
 
 import numpy as np
 import pyaudio
@@ -10,61 +12,88 @@ from pydub import AudioSegment
 from pydub.playback import play
 
 
-def record():
-    """
-    Records audio from the default microphone and returns the audio data.
-    Recording continues until Enter key is pressed.
+import pyaudio
+import numpy as np
+import threading
 
-    Returns:
-        tuple: A tuple containing (audio_data, sample_rate)
-    """
+### DISABLE ALSA WARNING MESSAGE
+# https://stackoverflow.com/questions/7088672/pyaudio-working-but-spits-out-error-messages-each-time
+ENABLE_WARNING = False
+if not ENABLE_WARNING:
+    ERROR_HANDLER_FUNC = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
 
-    CHUNK = 2048
-    FORMAT = pyaudio.paFloat32
-    CHANNELS = 1
-    RATE = 48000
+    def py_error_handler(filename, line, function, err, fmt):
+        pass
 
-    audio = pyaudio.PyAudio()
+    c_error_handler = ERROR_HANDLER_FUNC(py_error_handler)
 
-    stream = audio.open(
-        format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK
-    )
+    asound = cdll.LoadLibrary("libasound.so")
+    # Set error handler
+    asound.snd_lib_error_set_handler(c_error_handler)
+### DISABLE ALSA WARNING MESSAGE
 
-    print("Recording... Press Enter to stop.")
 
-    frames = []
-    recording = True
+class AudioRecorder:
+    def __init__(self):
+        self.CHUNK = 2048
+        self.FORMAT = pyaudio.paFloat32
+        self.CHANNELS = 1
+        self.RATE = 48000
+        self.recording = False
+        self.audio = pyaudio.PyAudio()
+        self.audio_data = None
+        self.sample_rate = None
+        self._record_thread = None
 
-    def check_input():
-        nonlocal recording
-        input()
-        recording = False
+    def _record_audio(self):
+        frames = []
+        stream = self.audio.open(
+            format=self.FORMAT,
+            channels=self.CHANNELS,
+            rate=self.RATE,
+            input=True,
+            frames_per_buffer=self.CHUNK,
+        )
 
-    import threading
+        while self.recording:
+            try:
+                data = stream.read(self.CHUNK, exception_on_overflow=False)
+                audio_array = np.frombuffer(data, dtype=np.float32)
+                # Amplify the audio signal
+                audio_array = audio_array * 5.0  # Increase amplitude by 5x
+                frames.append(audio_array)
+            except IOError as e:
+                print(f"Warning: {e}")
+                continue
 
-    input_thread = threading.Thread(target=check_input)
-    input_thread.daemon = True
-    input_thread.start()
+        stream.stop_stream()
+        stream.close()
+        self.audio.terminate()
 
-    while recording:
-        try:
-            data = stream.read(CHUNK, exception_on_overflow=False)
-            audio_array = np.frombuffer(data, dtype=np.float32)
-            # Amplify the audio signal
-            audio_array = audio_array * 5.0  # Increase amplitude by 5x
-            frames.append(audio_array)
-        except IOError as e:
-            print(f"Warning: {e}")
-            continue
+        self.audio_data = np.concatenate(frames)
+        self.sample_rate = self.RATE
 
-    print("Done recording.")
+    def record(self):
+        """
+        Records audio from the default microphone and stores the audio data
+        in class attributes. Recording continues until Enter key is pressed.
+        The recording runs in a separate thread.
+        """
+        if self._record_thread is not None and self._record_thread.is_alive():
+            return
 
-    stream.stop_stream()
-    stream.close()
-    audio.terminate()
+        self.recording = True
+        self._record_thread = threading.Thread(target=self._record_audio)
+        self._record_thread.start()
 
-    audio_data = np.concatenate(frames)
-    return audio_data, RATE
+    def stop_recording(self):
+        """
+        Stops the audio recording and waits for the recording thread to finish.
+        """
+        self.recording = False
+        if self._record_thread is not None:
+            self._record_thread.join()
+            self._record_thread = None
 
 
 def audio_to_base_64(audio, rate):

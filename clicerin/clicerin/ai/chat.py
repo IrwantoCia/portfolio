@@ -1,15 +1,19 @@
 import base64
-import numpy as np
 
 from openai import OpenAI
-from clicerin.helper import file
-from clicerin.openai import constant, model
+from pydub import AudioSegment
+from pydub.playback import play
+import numpy as np
+
+from ..helper import file
+from ..ai import constant, model
+
 
 client = OpenAI()
 
 
-def test(question: str):
-    request = model.OpenAIRequestBuilder("gpt-4o-mini")
+def chat(question: str):
+    request = model.OpenAIRequestBuilder(constant.GPTModel.GPT_4O_MINI)
     request.add_system_message(file.open_file(constant.SYSTEM_PROMPT)).add_user_message(
         question
     ).set_stream(True)
@@ -32,7 +36,7 @@ def voice_to_text(sound: str):
 
 def converse(encoded):
     completion = client.chat.completions.create(
-        model="gpt-4o-audio-preview",
+        model=constant.GPTModel.GPT_4O_AUDIO_PREVIEW,
         modalities=["text", "audio"],
         audio={"voice": "coral", "format": "pcm16"},
         stream=True,
@@ -50,8 +54,6 @@ def converse(encoded):
     )
 
     # Stream and play audio
-    from pydub import AudioSegment
-    from pydub.playback import play
 
     # Initialize an empty byte array to accumulate audio data
     audio_data = bytearray()
@@ -88,9 +90,3 @@ def converse(encoded):
 
         if chunk.choices[0].finish_reason == "stop":
             break
-
-    # res = completion.choices[0].message.audio
-    # if res:
-    #    return res.data
-    # else:
-    #    return None
