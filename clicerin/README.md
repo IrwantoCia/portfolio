@@ -49,7 +49,7 @@ clicerin [command] [options]
 
 | Command | Description |
 |---------|-------------|
-| `command1` | Description of command1 |
+| `ai` | Start ChatGPT interface |
 | `command2` | Description of command2 |
 
 ### Options
@@ -63,7 +63,7 @@ clicerin [command] [options]
 
 ```bash
 # Example 1
-clicerin command1 --option1 value1
+clicerin ai
 
 # Example 2
 clicerin command2 --option2 value2
