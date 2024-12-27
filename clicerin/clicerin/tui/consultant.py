@@ -12,8 +12,8 @@ from textual.containers import VerticalScroll, Container
 
 import asyncio
 
-from ..helper import db, audio
-from ..ai import chat
+from ..helper import audio
+from ..ai import chatx, voicex
 
 
 class ConsultApp(App):
@@ -24,9 +24,9 @@ class ConsultApp(App):
     def __init__(self):
         super().__init__()
         self.stream_task = None
-        self.db = db.DatabaseManager()
-        self.chats = ""
         self.audioRecorder = audio.AudioRecorder()
+        self.chatx = chatx.Chatx(resource_id="1")
+        self.voicex = voicex.Voicex()
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -34,7 +34,17 @@ class ConsultApp(App):
         with VerticalScroll(id="app-grid"):
             with Container(id="chat-pane"):
                 with VerticalScroll(id="markdown-content"):
-                    pass
+                    content = ""
+                    for h in self.chatx.get_history():
+                        if h.role == "ai":
+                            content += h.content
+                            md = Markdown(content)
+                            yield md
+                        elif h.role == "human":
+                            content = "### "  # markdown header
+                            content += h.content
+                            content += "\n---\n"  # markdown horizontal rule
+                            yield Rule(line_style="blank")
 
                 with VerticalScroll(classes="input-container"):
                     yield Static("Input", id="input_label", classes="input_label")
@@ -74,7 +84,7 @@ class ConsultApp(App):
             base64 = audio.audio_to_base_64(
                 self.audioRecorder.audio_data, self.audioRecorder.sample_rate
             )
-            chat.converse(base64)
+            self.voicex.invoke(base64)
 
     def on_send_button(self):
         self.char_index = 0
@@ -93,7 +103,7 @@ class ConsultApp(App):
 
         async def process_chunks():
             try:
-                for chunk in chat.chat(q):
+                for chunk in self.chatx.invoke(q):
                     if chunk is not None:
                         self.current_chat += chunk
                         await md.update(self.current_chat)
